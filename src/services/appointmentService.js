@@ -8,11 +8,11 @@ export const getAppointments = (customerId) =>
   api.get(`/customers/${customerId}/appointments`);
 
 export const cancelAppointment = (customerId, appointmentId) =>
-  api.put(`/customers/${customerId}/appointments/${appointmentId}/cancel`);
+  api.patch(`/customers/${customerId}/appointments/${appointmentId}/cancel`);
 
 // Feature 13 — Unavailable Part Requests
 export const requestUnavailablePart = (customerId, data) =>
-  api.post(`/customers/${customerId}/unavailable-part-requests`, data);
+  api.post(`/customers/${customerId}/part-requests`, data);
 
 export const getUnavailablePartRequests = (customerId) =>
-  api.get(`/customers/${customerId}/unavailable-part-requests`);
+  api.get(`/customers/${customerId}/part-requests`);

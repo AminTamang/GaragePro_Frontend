@@ -1,16 +1,13 @@
-// Feature 6: Staff can register new customers with vehicle details
+// Feature 6: Staff registers a new customer then attaches their vehicle
 import { useState } from 'react';
 import Layout from '../../components/layout/Layout';
 import { UserPlus, User, Phone, Mail, Car, Hash, CheckCircle, AlertCircle } from 'lucide-react';
-import { registerCustomer } from '../../services/customerService';
-
-const field = (label, name, type, placeholder, icon, value, onChange, required = true) => ({
-  label, name, type, placeholder, icon, value, onChange, required,
-});
+import { registerCustomer, addVehicle } from '../../services/customerService';
 
 export default function RegisterCustomerPage() {
-  const [customer, setCustomer] = useState({ customerName: '', customerEmail: '', customerPhone: '' });
-  const [vehicle, setVehicle]   = useState({ vehiclePlate: '', vehicleMake: '', vehicleModel: '', vehicleYear: '' });
+  // Field names match Amin's CustomerRegisterRequest + AddVehicleRequest
+  const [customer, setCustomer] = useState({ fullName: '', email: '', phoneNumber: '' });
+  const [vehicle, setVehicle]   = useState({ vehiclePlate: '', make: '', model: '', manufactureYear: '' });
   const [loading, setLoading]   = useState(false);
   const [toast, setToast]       = useState(null);
 
@@ -19,17 +16,28 @@ export default function RegisterCustomerPage() {
 
   const showToast = (type, text) => {
     setToast({ type, text });
-    setTimeout(() => setToast(null), 4000);
+    setTimeout(() => setToast(null), 5000);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      await registerCustomer({ ...customer, vehicle });
-      showToast('success', 'Customer registered successfully!');
-      setCustomer({ customerName: '', customerEmail: '', customerPhone: '' });
-      setVehicle({ vehiclePlate: '', vehicleMake: '', vehicleModel: '', vehicleYear: '' });
+      // Step 1 — register customer
+      const res = await registerCustomer(customer);
+      const customerId = res.data?.data?.id;
+
+      // Step 2 — attach vehicle if plate provided
+      if (customerId && vehicle.vehiclePlate) {
+        await addVehicle(customerId, {
+          ...vehicle,
+          manufactureYear: vehicle.manufactureYear ? parseInt(vehicle.manufactureYear) : null,
+        });
+      }
+
+      showToast('success', 'Customer & vehicle registered successfully!');
+      setCustomer({ fullName: '', email: '', phoneNumber: '' });
+      setVehicle({ vehiclePlate: '', make: '', model: '', manufactureYear: '' });
     } catch (err) {
       showToast('error', err.response?.data?.message || 'Registration failed. Please try again.');
     } finally {
@@ -37,13 +45,12 @@ export default function RegisterCustomerPage() {
     }
   };
 
-  const inputStyle = {
+  const inp = {
     width: '100%', border: '1px solid #e5e7eb', borderRadius: 8,
     padding: '9px 12px 9px 36px', fontSize: 13, color: '#111827',
     outline: 'none', background: '#fff',
   };
-  const iconWrap = { position: 'relative' };
-  const iconPos  = { position: 'absolute', top: 9, left: 10, pointerEvents: 'none' };
+  const iconPos = { position: 'absolute', top: 9, left: 10, pointerEvents: 'none' };
 
   return (
     <Layout title="Register Customer">
@@ -67,12 +74,9 @@ export default function RegisterCustomerPage() {
       )}
 
       <div style={{ maxWidth: 680 }}>
-        {/* Page header */}
+        {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-          <div style={{
-            width: 36, height: 36, borderRadius: 10, background: '#eef2ff',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <UserPlus size={18} color="#4f46e5" />
           </div>
           <div>
@@ -83,102 +87,89 @@ export default function RegisterCustomerPage() {
 
         <form onSubmit={handleSubmit}>
 
-          {/* Customer Details Card */}
-          <div style={{
-            background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb',
-            padding: 24, marginBottom: 16,
-          }}>
+          {/* Customer Card */}
+          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: 24, marginBottom: 16 }}>
             <p style={{ fontSize: 12, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 16 }}>
               Customer Details
             </p>
             <div style={{ display: 'grid', gap: 14 }}>
 
-              {/* Name */}
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 6 }}>Full Name *</label>
-                <div style={iconWrap}>
+                <div style={{ position: 'relative' }}>
                   <span style={iconPos}><User size={14} color="#9ca3af" /></span>
-                  <input name="customerName" type="text" placeholder="e.g. John Smith"
-                    value={customer.customerName} onChange={setC} required style={inputStyle} />
+                  <input name="fullName" type="text" placeholder="e.g. John Smith"
+                    value={customer.fullName} onChange={setC} required style={inp} />
                 </div>
               </div>
 
-              {/* Email */}
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 6 }}>Email Address *</label>
-                <div style={iconWrap}>
+                <div style={{ position: 'relative' }}>
                   <span style={iconPos}><Mail size={14} color="#9ca3af" /></span>
-                  <input name="customerEmail" type="email" placeholder="e.g. john@email.com"
-                    value={customer.customerEmail} onChange={setC} required style={inputStyle} />
+                  <input name="email" type="email" placeholder="e.g. john@email.com"
+                    value={customer.email} onChange={setC} required style={inp} />
                 </div>
               </div>
 
-              {/* Phone */}
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 6 }}>Phone Number *</label>
-                <div style={iconWrap}>
+                <div style={{ position: 'relative' }}>
                   <span style={iconPos}><Phone size={14} color="#9ca3af" /></span>
-                  <input name="customerPhone" type="tel" placeholder="e.g. 9800000000"
-                    value={customer.customerPhone} onChange={setC} required style={inputStyle} />
+                  <input name="phoneNumber" type="tel" placeholder="e.g. 9800000000"
+                    value={customer.phoneNumber} onChange={setC} required style={inp} />
                 </div>
               </div>
 
             </div>
           </div>
 
-          {/* Vehicle Details Card */}
-          <div style={{
-            background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb',
-            padding: 24, marginBottom: 20,
-          }}>
-            <p style={{ fontSize: 12, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 16 }}>
+          {/* Vehicle Card */}
+          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: 24, marginBottom: 20 }}>
+            <p style={{ fontSize: 12, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
               Vehicle Details
             </p>
+            <p style={{ fontSize: 11, color: '#9ca3af', marginBottom: 16 }}>Optional — can be added later</p>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
 
-              {/* Plate — full width */}
               <div style={{ gridColumn: '1 / -1' }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 6 }}>License Plate *</label>
-                <div style={iconWrap}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 6 }}>License Plate</label>
+                <div style={{ position: 'relative' }}>
                   <span style={iconPos}><Hash size={14} color="#9ca3af" /></span>
                   <input name="vehiclePlate" type="text" placeholder="e.g. BA 1 CHA 1234"
-                    value={vehicle.vehiclePlate} onChange={setV} required style={inputStyle} />
+                    value={vehicle.vehiclePlate} onChange={setV} style={inp} />
                 </div>
               </div>
 
-              {/* Make */}
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 6 }}>Make *</label>
-                <div style={iconWrap}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 6 }}>Make</label>
+                <div style={{ position: 'relative' }}>
                   <span style={iconPos}><Car size={14} color="#9ca3af" /></span>
-                  <input name="vehicleMake" type="text" placeholder="e.g. Toyota"
-                    value={vehicle.vehicleMake} onChange={setV} required style={inputStyle} />
+                  <input name="make" type="text" placeholder="e.g. Toyota"
+                    value={vehicle.make} onChange={setV} style={inp} />
                 </div>
               </div>
 
-              {/* Model */}
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 6 }}>Model *</label>
-                <div style={iconWrap}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 6 }}>Model</label>
+                <div style={{ position: 'relative' }}>
                   <span style={iconPos}><Car size={14} color="#9ca3af" /></span>
-                  <input name="vehicleModel" type="text" placeholder="e.g. Corolla"
-                    value={vehicle.vehicleModel} onChange={setV} required style={inputStyle} />
+                  <input name="model" type="text" placeholder="e.g. Corolla"
+                    value={vehicle.model} onChange={setV} style={inp} />
                 </div>
               </div>
 
-              {/* Year — full width */}
               <div style={{ gridColumn: '1 / -1' }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 6 }}>Year *</label>
-                <input name="vehicleYear" type="number" placeholder="e.g. 2019"
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 6 }}>Year</label>
+                <input name="manufactureYear" type="number" placeholder="e.g. 2019"
                   min="1900" max={new Date().getFullYear()}
-                  value={vehicle.vehicleYear} onChange={setV} required
-                  style={{ ...inputStyle, paddingLeft: 12 }} />
+                  value={vehicle.manufactureYear} onChange={setV}
+                  style={{ ...inp, paddingLeft: 12 }} />
               </div>
 
             </div>
           </div>
 
-          {/* Submit */}
           <button type="submit" disabled={loading} style={{
             width: '100%', background: loading ? '#a5b4fc' : '#4f46e5',
             color: '#fff', border: 'none', borderRadius: 8, padding: '11px 0',
