@@ -1,6 +1,12 @@
-import { Search } from 'lucide-react';
+import { Search, Bell } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 export default function Header({ title }) {
+  const { user } = useAuth();
+  const initials = user?.fullName
+    ? user.fullName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+    : '?';
+
   return (
     <header style={{
       height: 60, background: '#fff',
@@ -28,14 +34,21 @@ export default function Header({ title }) {
           />
         </div>
 
-        {/* Avatar */}
+        {/* Notification bell */}
+        <button style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+          <Bell size={18} color="#9ca3af" />
+        </button>
+
+        {/* Avatar with real initials */}
         <div style={{
           width: 34, height: 34, borderRadius: '50%',
           background: '#4f46e5', display: 'flex',
           alignItems: 'center', justifyContent: 'center',
-          color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer',
-        }}>R</div>
+          color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer',
+          title: user?.fullName,
+        }}>{initials}</div>
       </div>
     </header>
   );
 }
+

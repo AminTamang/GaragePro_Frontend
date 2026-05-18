@@ -1,17 +1,22 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, UserPlus, Users, CalendarDays, Wrench, Star, LogOut } from 'lucide-react';
+import { UserPlus, Users, CalendarDays, Wrench, Star, LogOut } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { logout as logoutApi } from '../../services/authService';
 
 const STAFF_NAV = [
-  { to: '/staff/register-customer', icon: UserPlus,       label: 'Register Customer' },
-  { to: '/staff/customers',         icon: Users,           label: 'Customer Details'  },
+  { to: '/staff/register-customer', icon: UserPlus,    label: 'Register Customer' },
+  { to: '/staff/customers',         icon: Users,        label: 'Customer Details'  },
+];
+
+const ADMIN_NAV = [
+  { to: '/staff/register-customer', icon: UserPlus,    label: 'Register Customer' },
+  { to: '/staff/customers',         icon: Users,        label: 'Customer Details'  },
 ];
 
 const CUSTOMER_NAV = [
-  { to: '/customer/appointments',     icon: CalendarDays, label: 'Appointments'   },
-  { to: '/customer/unavailable-parts',icon: Wrench,       label: 'Part Requests'  },
-  { to: '/customer/reviews',          icon: Star,         label: 'My Reviews'     },
+  { to: '/customer/appointments',      icon: CalendarDays, label: 'Appointments' },
+  { to: '/customer/unavailable-parts', icon: Wrench,       label: 'Part Requests' },
+  { to: '/customer/reviews',           icon: Star,         label: 'My Reviews'   },
 ];
 
 export default function Sidebar() {
@@ -19,7 +24,7 @@ export default function Sidebar() {
   const navigate = useNavigate();
 
   const role = user?.role?.toLowerCase();
-  const navItems = role === 'customer' ? CUSTOMER_NAV : STAFF_NAV;
+  const navItems = role === 'customer' ? CUSTOMER_NAV : role === 'admin' ? ADMIN_NAV : STAFF_NAV;
 
   const handleLogout = async () => {
     try { await logoutApi(); } catch { /* ignore */ }
