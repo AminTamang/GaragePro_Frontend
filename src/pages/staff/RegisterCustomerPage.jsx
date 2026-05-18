@@ -1,13 +1,13 @@
 // Feature 6: Staff registers a new customer then attaches their vehicle
 import { useState } from 'react';
 import Layout from '../../components/layout/Layout';
-import { UserPlus, User, Phone, Mail, Car, Hash, CheckCircle, AlertCircle } from 'lucide-react';
+import { UserPlus, User, Phone, Mail, Car, Hash, MapPin, CheckCircle, AlertCircle } from 'lucide-react';
 import { registerCustomer, addVehicle } from '../../services/customerService';
 
 export default function RegisterCustomerPage() {
-  // Field names match Amin's CustomerRegisterRequest + AddVehicleRequest
-  const [customer, setCustomer] = useState({ fullName: '', email: '', phoneNumber: '' });
-  const [vehicle, setVehicle]   = useState({ vehiclePlate: '', make: '', model: '', manufactureYear: '' });
+  // Field names match CustomerRegisterRequest + AddVehicleRequest
+  const [customer, setCustomer] = useState({ fullName: '', email: '', phoneNumber: '', address: '' });
+  const [vehicle, setVehicle]   = useState({ vehiclePlate: '', make: '', model: '', manufactureYear: '', vehicleType: '' });
   const [loading, setLoading]   = useState(false);
   const [toast, setToast]       = useState(null);
 
@@ -30,14 +30,17 @@ export default function RegisterCustomerPage() {
       // Step 2 — attach vehicle if plate provided
       if (customerId && vehicle.vehiclePlate) {
         await addVehicle(customerId, {
-          ...vehicle,
+          vehiclePlate: vehicle.vehiclePlate,
+          make:          vehicle.make,
+          model:         vehicle.model,
+          vehicleType:   vehicle.vehicleType || null,
           manufactureYear: vehicle.manufactureYear ? parseInt(vehicle.manufactureYear) : null,
         });
       }
 
       showToast('success', 'Customer & vehicle registered successfully!');
-      setCustomer({ fullName: '', email: '', phoneNumber: '' });
-      setVehicle({ vehiclePlate: '', make: '', model: '', manufactureYear: '' });
+      setCustomer({ fullName: '', email: '', phoneNumber: '', address: '' });
+      setVehicle({ vehiclePlate: '', make: '', model: '', manufactureYear: '', vehicleType: '' });
     } catch (err) {
       showToast('error', err.response?.data?.message || 'Registration failed. Please try again.');
     } finally {
@@ -121,6 +124,15 @@ export default function RegisterCustomerPage() {
                 </div>
               </div>
 
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 6 }}>Address</label>
+                <div style={{ position: 'relative' }}>
+                  <span style={iconPos}><MapPin size={14} color="#9ca3af" /></span>
+                  <input name="address" type="text" placeholder="e.g. Kathmandu, Nepal"
+                    value={customer.address} onChange={setC} style={inp} />
+                </div>
+              </div>
+
             </div>
           </div>
 
@@ -165,6 +177,21 @@ export default function RegisterCustomerPage() {
                   min="1900" max={new Date().getFullYear()}
                   value={vehicle.manufactureYear} onChange={setV}
                   style={{ ...inp, paddingLeft: 12 }} />
+              </div>
+
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 6 }}>Vehicle Type</label>
+                <select name="vehicleType" value={vehicle.vehicleType} onChange={setV}
+                  style={{ ...inp, paddingLeft: 12 }}>
+                  <option value="">Select type (optional)...</option>
+                  <option value="Sedan">Sedan</option>
+                  <option value="SUV">SUV</option>
+                  <option value="Hatchback">Hatchback</option>
+                  <option value="Truck">Truck</option>
+                  <option value="Van">Van</option>
+                  <option value="Motorcycle">Motorcycle</option>
+                  <option value="Other">Other</option>
+                </select>
               </div>
 
             </div>
