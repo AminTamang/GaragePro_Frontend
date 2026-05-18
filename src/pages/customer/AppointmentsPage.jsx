@@ -22,7 +22,8 @@ export default function AppointmentsPage() {
   const showToast = (type, text) => { setToast({ type, text }); setTimeout(() => setToast(null), 4000); };
 
   const load = async () => {
-    try { const r = await getAppointments(customerId); setAppointments(r.data || []); }
+    if (!customerId) return;
+    try { const r = await getAppointments(customerId); setAppointments(r.data?.data || []); }
     catch { setAppointments([]); }
   };
 
@@ -30,9 +31,10 @@ export default function AppointmentsPage() {
 
   const handleBook = async (e) => {
     e.preventDefault();
+    if (!customerId) { showToast('error', 'Customer ID not found. Please log in again.'); return; }
     setLoad(true);
     try {
-      await bookAppointment(customerId, form);
+      await bookAppointment(customerId, { ...form, apptDate: new Date(form.apptDate).toISOString() });
       showToast('success', 'Appointment booked!');
       setForm({ apptDate: '', apptNotes: '' });
       load();
