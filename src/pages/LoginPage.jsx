@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Mail, Lock, LogIn, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { login as loginApi } from '../services/authService';
@@ -40,7 +40,7 @@ export default function LoginPage() {
 
   return (
     <div style={{
-      minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      width: '100%', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
       background: '#f9fafb',
     }}>
       <div style={{ width: '100%', maxWidth: 400, padding: '0 16px' }}>
@@ -111,6 +111,13 @@ export default function LoginPage() {
               {loading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
+
+          <div style={{ marginTop: 24, textAlign: 'center', fontSize: 13, color: '#6b7280' }}>
+            Don't have an account?{' '}
+            <Link to="/register" style={{ color: '#4f46e5', fontWeight: 600, textDecoration: 'none' }}>
+              Sign Up
+            </Link>
+          </div>
         </div>
 
         <p style={{ textAlign: 'center', fontSize: 12, color: '#9ca3af', marginTop: 20 }}>
