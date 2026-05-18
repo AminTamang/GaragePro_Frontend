@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import ProtectedRoute from '../components/ProtectedRoute';
 
 import LoginPage               from '../pages/LoginPage';
-import DashboardPage           from '../pages/DashboardPage';
+import RegisterPage            from '../pages/RegisterPage';
 import RegisterCustomerPage    from '../pages/staff/RegisterCustomerPage';
 import CustomerDetailsPage     from '../pages/staff/CustomerDetailsPage';
 import AppointmentsPage        from '../pages/customer/AppointmentsPage';
@@ -14,7 +14,7 @@ function RoleHome() {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
   const role = user.role?.toLowerCase();
-  if (role === 'customer')   return <Navigate to="/customer/appointments" replace />;
+  if (role === 'customer') return <Navigate to="/customer/appointments" replace />;
   return <Navigate to="/staff/register-customer" replace />;
 }
 
@@ -23,11 +23,12 @@ export default function AppRoutes() {
     <Routes>
       {/* Public */}
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
 
       {/* Root redirect */}
       <Route path="/" element={<RoleHome />} />
 
-      {/* Staff + Admin routes */}
+      {/* Staff + Admin routes — Feature 6 & 8 (Ryan Khan) */}
       <Route path="/staff/register-customer" element={
         <ProtectedRoute roles={['Staff', 'Admin']}>
           <RegisterCustomerPage />
@@ -39,7 +40,7 @@ export default function AppRoutes() {
         </ProtectedRoute>
       } />
 
-      {/* Customer routes */}
+      {/* Customer routes — Feature 13 (Ryan Khan) */}
       <Route path="/customer/appointments" element={
         <ProtectedRoute roles={['Customer']}>
           <AppointmentsPage />
