@@ -10,3 +10,7 @@ export const addVehicle = (customerId, data) =>
 // Feature 8 — Get customer by ID (includes vehicles)
 export const getCustomerById = (id) =>
   api.get(`/customers/${id}`);
+
+// Feature 10 — Search customers by name, phone, email, plate, ID
+export const searchCustomers = (query) =>
+  api.get('/customers', { params: { q: query } });
