@@ -16,7 +16,8 @@ export default function UnavailablePartsPage() {
   const showToast = (type, text) => { setToast({ type, text }); setTimeout(() => setToast(null), 4000); };
 
   const load = async () => {
-    try { const r = await getUnavailablePartRequests(customerId); setRequests(r.data || []); }
+    if (!customerId) return;
+    try { const r = await getUnavailablePartRequests(customerId); setRequests(r.data?.data || []); }
     catch { setRequests([]); }
   };
 
@@ -24,6 +25,7 @@ export default function UnavailablePartsPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!customerId) { showToast('error', 'Customer ID not found. Please log in again.'); return; }
     setLoad(true);
     try {
       await requestUnavailablePart(customerId, form);
