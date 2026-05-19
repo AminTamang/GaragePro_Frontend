@@ -1,6 +1,11 @@
-import FeatureWorkbenchPage from './FeatureWorkbenchPage';
-import { featureConfigs } from '../data/featureConfigs';
+import { useAuth } from '../auth/AuthContext';
+import CustomerAppointmentsPage from './customer/AppointmentsPage';
+import StaffAppointmentsPage from './staff/StaffAppointmentsPage';
 
 export default function AppointmentsRequestsReviewsPage() {
-  return <FeatureWorkbenchPage config={featureConfigs.appointmentsRequestsReviews} />;
+  const { role } = useAuth();
+  if (role === 'Customer') {
+    return <CustomerAppointmentsPage />;
+  }
+  return <StaffAppointmentsPage />;
 }

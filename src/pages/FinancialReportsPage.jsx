@@ -1,202 +1,209 @@
-import { useState } from 'react';
-import { Download, FileText, Filter, TrendingUp, TrendingDown } from 'lucide-react';
-import DataTable from '../components/DataTable';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { Download, FileText, TrendingUp } from 'lucide-react';
+import PageHeader from '../components/PageHeader';
+import LoadingState from '../components/LoadingState';
+import AlertBanner from '../components/AlertBanner';
 import { apiRequest } from '../services/apiClient';
-import {
-  financialCards,
-  revenueBreakdown,
-  transactionRows,
-  categoryStats,
-  monthlySummary,
-} from '../data/MockData';
+import { downloadCsv, printPdf } from '../utils/exportUtils';
 
-const maxVal = Math.max(
-  ...revenueBreakdown.map((r) => r.parts + r.service + r.labour)
-);
-
-const catBadgeClass = { Parts: 'cb-parts', Service: 'cb-service', Labour: 'cb-labour', Other: 'cb-other' };
+const TYPE_BY_PATH = {
+  '/admin/reports/daily': 'daily',
+  '/admin/reports/monthly': 'monthly',
+  '/admin/reports/yearly': 'yearly',
+  '/admin/reports/sales': 'monthly',
+};
 
 export default function FinancialReportsPage() {
-  const [status, setStatus] = useState('Ready');
+  const location = useLocation();
+  const reportType = TYPE_BY_PATH[location.pathname] || 'monthly';
+  const [report, setReport] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const now = new Date();
+  const [month, setMonth] = useState(now.getMonth() + 1);
+  const [year, setYear] = useState(now.getFullYear());
+  const [date, setDate] = useState(now.toISOString().slice(0, 10));
 
-  async function loadFinancialReport() {
-    setStatus('Loading financial report...');
-    try {
-      const payload = await apiRequest('/api/admin/reports/financial?type=monthly&year=2026&month=5');
-      setStatus(payload?.message || 'Financial report loaded from backend.');
-    } catch (error) {
-      setStatus(error.message);
-    }
+  const query = useMemo(() => {
+    if (reportType === 'daily') return `type=daily&date=${date}`;
+    if (reportType === 'yearly') return `type=yearly&year=${year}`;
+    return `type=monthly&year=${year}&month=${month}`;
+  }, [reportType, date, year, month]);
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      setError('');
+      try {
+        const payload = await apiRequest(`/api/admin/reports/financial?${query}`);
+        setReport(payload.data);
+      } catch (err) {
+        setError(err.message);
+        setReport(null);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [query]);
+
+  const title = reportType === 'daily' ? 'Daily Report' : reportType === 'yearly' ? 'Yearly Report' : 'Monthly Report';
+
+  const chartSeries = useMemo(() => {
+    if (!report) return [];
+    const series = report.revenueBreakdown || report.trend || report.chart || report.monthlyRevenue || [];
+    if (Array.isArray(series) && series.length) return series;
+    return [];
+  }, [report]);
+
+  const summaryStats = report ? [
+    { label: 'Total Sales', value: `Rs. ${Number(report.totalSales || report.revenue || 0).toLocaleString()}` },
+    { label: 'Expenses', value: `Rs. ${Number(report.totalExpenses || report.expenses || 0).toLocaleString()}` },
+    { label: 'Net Profit', value: `Rs. ${Number(report.netProfit || report.profit || 0).toLocaleString()}` },
+    { label: 'Invoices', value: report.invoiceCount ?? report.invoices ?? 0 },
+  ] : [];
+
+  function exportCsv() {
+    if (!report) return;
+    const rows = chartSeries.length
+      ? chartSeries.map((row) => ({
+          period: row.month || row.period || row.label,
+          parts: row.parts ?? row.partsRevenue ?? 0,
+          service: row.service ?? row.serviceRevenue ?? 0,
+          labour: row.labour ?? row.labourRevenue ?? 0,
+          total: row.total ?? row.value ?? row.totalRevenue ?? 0,
+        }))
+      : [report];
+    downloadCsv(`garagepro-${reportType}-report.csv`, rows, [
+      { key: 'period', label: 'Period' },
+      { key: 'parts', label: 'Parts' },
+      { key: 'service', label: 'Service' },
+      { key: 'labour', label: 'Labour' },
+      { key: 'total', label: 'Total' },
+    ]);
   }
 
-  function exportReport() {
-    const report = { financialCards, revenueBreakdown, transactionRows, categoryStats, monthlySummary };
-    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'garagepro-financial-report.json';
-    link.click();
-    URL.revokeObjectURL(url);
-    setStatus('Report exported.');
+  function exportPdf() {
+    if (!report) return;
+    const rows = chartSeries.map((row) => ({
+      period: row.month || row.period || row.label,
+      parts: row.parts ?? row.partsRevenue ?? 0,
+      service: row.service ?? row.serviceRevenue ?? 0,
+      labour: row.labour ?? row.labourRevenue ?? 0,
+      total: row.total ?? row.value ?? row.totalRevenue ?? 0,
+    }));
+    printPdf({
+      title: `GaragePro ${title}`,
+      subtitle: `Generated for ${report.period || 'selected period'}`,
+      summary: summaryStats,
+      columns: [
+        { key: 'period', label: 'Period' },
+        { key: 'parts', label: 'Parts' },
+        { key: 'service', label: 'Service' },
+        { key: 'labour', label: 'Labour' },
+        { key: 'total', label: 'Total' },
+      ],
+      rows,
+    });
   }
 
   return (
     <>
-      {/* Filter Bar */}
-      <div className="filter-bar">
-        <span className="filter-label">Period</span>
-        <div className="seg-control">
-          {['Daily', 'Weekly', 'Monthly', 'Quarterly', 'Yearly'].map((p) => (
-            <button key={p} className={`seg-btn ${p === 'Monthly' ? 'active' : ''}`} onClick={loadFinancialReport}>{p}</button>
-          ))}
+      <PageHeader
+        eyebrow="Admin / Reports"
+        title={title}
+        description="Live financial summary from your sales invoices."
+        actions={
+          <div className="action-row">
+            <button type="button" className="btn-secondary" onClick={exportCsv} disabled={!report}>
+              <Download size={16} /> CSV
+            </button>
+            <button type="button" className="btn-secondary" onClick={exportPdf} disabled={!report}>
+              <FileText size={16} /> PDF
+            </button>
+          </div>
+        }
+      />
+
+      <nav className="report-tabs">
+        <Link className={`report-tab ${reportType === 'daily' ? 'active' : ''}`} to="/admin/reports/daily">Daily</Link>
+        <Link className={`report-tab ${reportType === 'monthly' ? 'active' : ''}`} to="/admin/reports/monthly">Monthly</Link>
+        <Link className={`report-tab ${reportType === 'yearly' ? 'active' : ''}`} to="/admin/reports/yearly">Yearly</Link>
+      </nav>
+
+      <section className="panel-card filter-card">
+        <div className="filter-row">
+          {reportType === 'daily' ? (
+            <label>Date <input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
+          ) : (
+            <>
+              <label>Year <input type="number" min="2020" max="2030" value={year} onChange={(e) => setYear(Number(e.target.value))} /></label>
+              {reportType === 'monthly' && (
+                <label>Month <input type="number" min="1" max="12" value={month} onChange={(e) => setMonth(Number(e.target.value))} /></label>
+              )}
+            </>
+          )}
         </div>
-        <select className="date-select">
-          {['Jan 2026', 'Feb 2026', 'Mar 2026', 'Apr 2026', 'May 2026'].map((m) => (
-            <option key={m} value={m}>{m}</option>
-          ))}
-        </select>
-        <div style={{ flex: 1 }} />
-        <button className="btn-ghost" onClick={loadFinancialReport}><Filter size={14} /> Filter</button>
-        <button className="btn-primary" onClick={exportReport}><Download size={14} /> Export</button>
-      </div>
-      <div className="status-box">{status}</div>
+      </section>
 
-      {/* KPI Grid */}
-      <div className="kpi-grid">
-        {financialCards.map((card, i) => {
-          const colorClass = ['kc-g', 'kc-b', 'kc-a', 'kc-p'][i];
-          const iconClass = ['ki-green', 'ki-blue', 'ki-amber', 'ki-purple'][i];
-          return (
-            <div className={`kpi-card ${colorClass}`} key={card.label}>
-              <div className="kpi-top">
-                <div className={`kpi-icon ${iconClass}`}>
-                  {card.trend === 'up' ? <TrendingUp size={17} /> : <TrendingDown size={17} />}
-                </div>
-                <span className={`kpi-trend ${card.trend === 'up' ? 'trend-up' : 'trend-dn'}`}>
-                  {card.change}
-                </span>
+      <AlertBanner type="error">{error}</AlertBanner>
+      {loading ? <LoadingState label="Generating report..." /> : report && (
+        <>
+          <div className="stat-grid animate-in">
+            <article className="stat-card panel-card">
+              <span className="stat-icon"><TrendingUp size={20} /></span>
+              <p className="stat-value">Rs. {Number(report.totalSales || report.revenue || 0).toLocaleString()}</p>
+              <p className="stat-label">Total Sales</p>
+              <p className="stat-sub">Period: {report.period}</p>
+            </article>
+            <article className="stat-card panel-card">
+              <p className="stat-value">Rs. {Number(report.totalExpenses || report.expenses || 0).toLocaleString()}</p>
+              <p className="stat-label">Expenses</p>
+            </article>
+            <article className="stat-card panel-card">
+              <p className="stat-value">Rs. {Number(report.netProfit || report.profit || 0).toLocaleString()}</p>
+              <p className="stat-label">Net Profit</p>
+            </article>
+            <article className="stat-card panel-card">
+              <p className="stat-value">{report.invoiceCount ?? report.invoices ?? 0}</p>
+              <p className="stat-label">Invoices</p>
+            </article>
+          </div>
+
+          {chartSeries.length > 0 && (
+            <section className="panel-card animate-in" style={{ marginTop: 18 }}>
+              <div className="panel-header">
+                <span className="panel-title">Revenue Trend</span>
               </div>
-              <div className="kpi-val">{card.value}</div>
-              <div className="kpi-lbl">{card.label}</div>
-              <div className="kpi-sub">{card.sub}</div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Reports Grid */}
-      <div className="reports-grid">
-        {/* Left column */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {/* Bar Chart */}
-          <div className="panel">
-            <div className="panel-header">
-              <div className="panel-title-row">
-                <span className="panel-icon"><FileText size={17} /></span>
-                <span className="panel-title">Monthly Revenue Breakdown</span>
+              <div className="chart-legend">
+                <span className="legend-item"><span className="legend-dot cb-parts" /> Parts</span>
+                <span className="legend-item"><span className="legend-dot cb-service" /> Service</span>
+                <span className="legend-item"><span className="legend-dot cb-labour" /> Labour</span>
               </div>
-              <div className="panel-actions">
-                <button className="icon-btn" onClick={exportReport} aria-label="Export financial chart"><Download size={14} /></button>
-              </div>
-            </div>
-
-            <div className="chart-legend">
-              <div className="legend-item"><div className="legend-dot" style={{ background: 'var(--electric-blue)' }} />Parts</div>
-              <div className="legend-item"><div className="legend-dot" style={{ background: 'var(--clean-green)' }} />Service</div>
-              <div className="legend-item"><div className="legend-dot" style={{ background: 'var(--burnt-orange)' }} />Labour</div>
-            </div>
-
-            <div className="chart-wrap">
-              <div className="bar-chart">
-                {revenueBreakdown.map((item) => {
-                  const ph = Math.round((item.parts / maxVal) * 160);
-                  const sh = Math.round((item.service / maxVal) * 160);
-                  const lh = Math.round((item.labour / maxVal) * 160);
-                  return (
-                    <div className="bar-group" key={item.month}>
-                      <div className="bars">
-                        <div className="bar" style={{ height: `${ph}px`, background: 'var(--electric-blue)' }} title={`Parts ${item.parts}k`} />
-                        <div className="bar" style={{ height: `${sh}px`, background: 'var(--clean-green)' }} title={`Service ${item.service}k`} />
-                        <div className="bar" style={{ height: `${lh}px`, background: 'var(--burnt-orange)' }} title={`Labour ${item.labour}k`} />
+              <div className="chart-wrap">
+                <div className="bar-chart">
+                  {chartSeries.map((row, index) => {
+                    const parts = Number(row.parts ?? row.partsRevenue ?? 0);
+                    const service = Number(row.service ?? row.serviceRevenue ?? 0);
+                    const labour = Number(row.labour ?? row.labourRevenue ?? 0);
+                    const total = Math.max(parts + service + labour, Number(row.total ?? row.value ?? 0), 1);
+                    return (
+                      <div className="bar-group" key={`${row.month || row.period || row.label || index}`}>
+                        <div className="bars">
+                          <div className="bar cb-parts" style={{ height: `${(parts / total) * 100}%` }} />
+                          <div className="bar cb-service" style={{ height: `${(service / total) * 100}%` }} />
+                          <div className="bar cb-labour" style={{ height: `${(labour / total) * 100}%` }} />
+                        </div>
+                        <span className="bar-lbl">{row.month || row.period || row.label}</span>
                       </div>
-                      <span className="bar-lbl">{item.month}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-          {/* Transactions Table */}
-          <div className="panel">
-            <div className="panel-header">
-              <div className="panel-title-row">
-                <span className="panel-icon"><FileText size={17} /></span>
-                <span className="panel-title">Recent Transactions</span>
-              </div>
-            </div>
-            <DataTable
-              columns={['Invoice', 'Customer', 'Category', 'Date', 'Amount']}
-              rows={transactionRows.map((row) => [
-                <span className="mono-text" key={row.invoice}>{row.invoice}</span>,
-                row.customer,
-                <span className={`cat-badge ${catBadgeClass[row.category] || 'cb-other'}`} key={`${row.invoice}-cat`}>{row.category}</span>,
-                row.date,
-                <span className="amount-cell" key={`${row.invoice}-amt`}>{row.amount}</span>,
-              ])}
-            />
-          </div>
-        </div>
-
-        {/* Right column */}
-        <div className="right-col">
-          {/* Revenue by Category */}
-          <div className="panel">
-            <div className="panel-header">
-              <div className="panel-title-row">
-                <span className="panel-icon"><FileText size={17} /></span>
-                <span className="panel-title">Revenue by Category</span>
-              </div>
-            </div>
-            <div>
-              {categoryStats.map((cat) => (
-                <div className="breakdown-item" key={cat.label}>
-                  <div className="bd-left">
-                    <div className="bd-dot" style={{ background: cat.color }} />
-                    <div>
-                      <div className="bd-name">{cat.label}</div>
-                      <div className="bd-pct">{cat.percent}% of total</div>
-                    </div>
-                  </div>
-                  <div className="bd-right">
-                    <div className="bd-val">{cat.value}</div>
-                    <div className="bd-bar-wrap">
-                      <div className="bd-bar-fill" style={{ width: `${cat.percent}%`, background: cat.color }} />
-                    </div>
-                  </div>
+                    );
+                  })}
                 </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Monthly Summary */}
-          <div className="panel">
-            <div className="panel-header">
-              <div className="panel-title-row">
-                <span className="panel-icon"><FileText size={17} /></span>
-                <span className="panel-title">Monthly Summary</span>
               </div>
-            </div>
-            {monthlySummary.map((item) => (
-              <div className="summary-stat" key={item.label}>
-                <span className="ss-label">{item.label}</span>
-                <span className={`ss-val ${item.tone}`}>{item.value}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+            </section>
+          )}
+        </>
+      )}
     </>
   );
 }

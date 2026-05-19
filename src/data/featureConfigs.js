@@ -309,9 +309,13 @@ export const featureConfigs = {
   loyaltyOffers: {
     owner: 'Ryan Khan',
     feature: 16,
-    title: 'Loyalty Discount / Offer Display',
-    description: 'Frontend display for loyalty discounts and offers. No dedicated backend route exists yet, so this page is ready for the offer API when added.',
-    quickActions: [{ label: 'Check Customer Reports', path: '/api/staff/customers/reports/high-spenders' }],
+    title: 'Loyalty Discounts and Offers',
+    description: 'Load active loyalty discounts and compare eligibility against high-spender customer reports.',
+    loadAction: { label: 'Load Offers', path: '/api/customers/loyalty-offers' },
+    quickActions: [
+      { label: 'Load Active Offers', path: '/api/customers/loyalty-offers' },
+      { label: 'Check High-Spender Eligibility', path: '/api/staff/customers/reports/high-spenders' },
+    ],
     columns: [
       { label: 'Offer', keys: ['offer', 'customerName'] },
       { label: 'Discount', keys: ['discount', 'totalSpend'] },

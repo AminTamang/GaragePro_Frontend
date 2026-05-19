@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { RefreshCw, Send, Database, Play, Trash2 } from 'lucide-react';
 import DataTable from '../components/DataTable';
 import { apiRequest, unwrapData } from '../services/apiClient';
@@ -23,12 +23,19 @@ export default function FeatureWorkbenchPage({ config }) {
   );
   const [form, setForm] = useState(initialForm);
   const [rows, setRows] = useState(config.sampleRows || []);
-  const [status, setStatus] = useState('Ready');
+  const [status, setStatus] = useState('API ready');
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (config.loadAction) {
+      runAction(config.loadAction);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config.title, config.feature]);
 
   async function runAction(action) {
     setBusy(true);
-    setStatus(`Running ${action.label}...`);
+    setStatus(`${action.label} in progress...`);
     try {
       const body = action.body ? action.body(form) : undefined;
       const path = typeof action.path === 'function' ? action.path(form) : action.path;
@@ -40,7 +47,7 @@ export default function FeatureWorkbenchPage({ config }) {
       if (data.length) setRows(data);
       setStatus(payload?.message || `${action.label} completed`);
     } catch (error) {
-      setStatus(error.message);
+      setStatus(error.message || 'The API action could not be completed.');
     } finally {
       setBusy(false);
     }
@@ -76,7 +83,7 @@ export default function FeatureWorkbenchPage({ config }) {
         <div className="feature-actions">
           {config.loadAction && (
             <button className="btn-primary" disabled={busy} onClick={() => runAction(config.loadAction)}>
-              <RefreshCw size={15} /> Refresh Data
+              <RefreshCw size={15} /> {config.loadAction.label || 'Load Data'}
             </button>
           )}
           {config.deletePath && (
@@ -123,7 +130,7 @@ export default function FeatureWorkbenchPage({ config }) {
         <section className="panel endpoint-panel">
           <div className="panel-header">
             <span className="panel-title">API Controls</span>
-            <span className="count-pill">{busy ? 'Working' : 'Connected-ready'}</span>
+            <span className="count-pill">{busy ? 'Working' : 'API ready'}</span>
           </div>
           <div className="endpoint-list">
             {(config.quickActions || []).map((action) => (

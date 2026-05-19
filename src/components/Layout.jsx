@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import {
   Wrench,
   BarChart2,
@@ -8,7 +7,6 @@ import {
   Clock,
   Calendar,
   Bell,
-  Download,
   UserCog,
   ShoppingCart,
   UserPlus,
@@ -16,77 +14,109 @@ import {
   History,
   Gift,
   BellRing,
+  LogOut,
+  Settings,
 } from 'lucide-react';
-import { navItems } from '../data/MockData';
-import { getAuthToken, setAuthToken } from '../services/apiClient';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../auth/AuthContext';
 
-const sidebarLinks = [
-  { icon: BarChart2, label: 'Financial Reports', id: 'financials' },
-  { icon: UserCog, label: 'Staff Management', id: 'staffManagement' },
-  { icon: Package, label: 'Parts Management', id: 'partsManagement' },
-  { icon: ShoppingCart, label: 'Purchase / Stock', id: 'purchaseStock' },
-  { icon: Users, label: 'Vendor Management', id: 'vendors' },
-  { icon: UserPlus, label: 'Register + Vehicle', id: 'registerVehicle' },
-  { icon: FileText, label: 'Sales & Invoices', id: 'salesInvoice' },
-  { icon: Users, label: 'Customer Details', id: 'customerDetails' },
-  { icon: ClipboardList, label: 'Customer Reports', id: 'customerReports' },
-  { icon: Clock, label: 'Customer Search', id: 'customers' },
-  { icon: FileText, label: 'Invoice Email', id: 'invoiceEmail' },
-  { icon: UserPlus, label: 'Customer Registration', id: 'customerRegistration' },
-  { icon: Calendar, label: 'Appointments / Reviews', id: 'appointmentsRequestsReviews' },
-  { icon: History, label: 'Service History', id: 'purchaseHistory' },
-  { icon: BellRing, label: 'Notifications', id: 'notifications' },
-  { icon: Gift, label: 'Loyalty Offers', id: 'loyaltyOffers' },
-];
+const navByRole = {
+  Admin: [
+    { icon: BarChart2, label: 'Dashboard', to: '/admin/dashboard' },
+    { icon: UserCog, label: 'Staff Management', to: '/admin/staff' },
+    { icon: Package, label: 'Parts Management', to: '/admin/parts' },
+    { icon: ShoppingCart, label: 'Purchase / Stock', to: '/admin/purchases' },
+    { icon: Users, label: 'Vendor Management', to: '/admin/vendors' },
+    { icon: FileText, label: 'Reports', to: '/admin/reports/monthly' },
+    { icon: BellRing, label: 'Notifications', to: '/admin/notifications' },
+    { icon: Gift, label: 'Customer Analytics', to: '/admin/customer-analytics' },
+    { icon: Settings, label: 'Settings / Profile', to: '/admin/settings' },
+  ],
+  Staff: [
+    { icon: BarChart2, label: 'Dashboard', to: '/staff/dashboard' },
+    { icon: UserPlus, label: 'Register Customer', to: '/staff/customers/register' },
+    { icon: Users, label: 'Customer Details', to: '/staff/customers/details' },
+    { icon: Clock, label: 'Search Customers', to: '/staff/customers/search' },
+    { icon: FileText, label: 'Create Sale', to: '/staff/sales/create' },
+    { icon: History, label: 'Sales History', to: '/staff/sales/history' },
+    { icon: ClipboardList, label: 'Reports', to: '/staff/reports/high-spenders' },
+    { icon: Bell, label: 'Notifications', to: '/staff/notifications' },
+    { icon: Calendar, label: 'Appointments', to: '/staff/appointments' },
+    { icon: Settings, label: 'Profile', to: '/staff/profile' },
+  ],
+  Customer: [
+    { icon: BarChart2, label: 'Dashboard', to: '/customer/dashboard' },
+    { icon: UserCog, label: 'My Profile', to: '/customer/profile' },
+    { icon: Users, label: 'My Vehicles', to: '/customer/vehicles' },
+    { icon: Calendar, label: 'Appointments', to: '/customer/appointments' },
+    { icon: History, label: 'Purchase History', to: '/customer/purchase-history' },
+    { icon: Package, label: 'Request Part', to: '/customer/request-part' },
+    { icon: Gift, label: 'Loyalty Offers', to: '/customer/loyalty-offers' },
+    { icon: Bell, label: 'Notifications', to: '/customer/notifications' },
+    { icon: Settings, label: 'Settings', to: '/customer/settings' },
+  ],
+};
 
-export default function Layout({ activePage, setActivePage, children }) {
-  const [token, setToken] = useState(getAuthToken());
-  const activeMeta = navItems.find((n) => n.id === activePage);
+const TITLE_MAP = {
+  '/admin/parts/add': 'Add Part',
+  '/admin/staff/add': 'Add Staff',
+  '/admin/vendors/add': 'Add Vendor',
+  '/admin/purchases/create': 'Create Purchase',
+  '/staff/sales/create': 'Create Sale',
+  '/staff/sales/history': 'Sales History',
+  '/staff/customers/register': 'Register Customer',
+  '/staff/customers/details': 'Customer Details',
+  '/customer/profile': 'My Profile',
+  '/customer/purchase-history': 'Purchase History',
+};
 
-  function saveToken() {
-    setAuthToken(token);
+function titleFromPath(pathname, role) {
+  for (const [path, title] of Object.entries(TITLE_MAP)) {
+    if (pathname.startsWith(path)) return title;
   }
+  if (pathname.includes('/edit')) return 'Edit Record';
+  if (pathname.includes('/stock-history')) return 'Stock History';
+  if (pathname.includes('/invoices/')) return 'Invoice Detail';
+  const item = navByRole[role]?.find((nav) => pathname.startsWith(nav.to));
+  return item?.label || `${role} Workspace`;
+}
 
-  function exportPageInfo() {
-    const blob = new Blob([JSON.stringify(activeMeta, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${activePage}-page-info.json`;
-    link.click();
-    URL.revokeObjectURL(url);
+export default function Layout({ role }) {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const links = navByRole[role] || [];
+
+  function handleLogout() {
+    logout();
+    navigate('/login', { replace: true });
   }
 
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <div className="logo">
+        <NavLink to={`/${role.toLowerCase()}/dashboard`} className="logo">
           <div className="logo-icon">
             <Wrench size={18} color="#FFFFFF" strokeWidth={2.5} />
           </div>
           <span className="logo-text">GaragePro</span>
-        </div>
+        </NavLink>
 
         <nav className="nav-section">
-          <p className="nav-label">Main</p>
-          {sidebarLinks.map(({ icon: Icon, label, id }) => (
-            <button
-              key={label}
-              className={`nav-item ${activePage === id && id !== null ? 'active' : ''}`}
-              onClick={() => id && setActivePage(id)}
-              style={{ cursor: id ? 'pointer' : 'default' }}
-            >
+          <p className="nav-label">{role}</p>
+          {links.map(({ icon: Icon, label, to }) => (
+            <NavLink key={to} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} to={to}>
               <Icon size={16} />
               {label}
-            </button>
+            </NavLink>
           ))}
         </nav>
 
         <div className="sidebar-footer">
-          <div className="avatar">AD</div>
+          <div className="avatar">{user?.fullName?.slice(0, 2).toUpperCase() || role.slice(0, 2).toUpperCase()}</div>
           <div>
-            <div className="avatar-name">Admin</div>
-            <div className="avatar-role">Super Admin</div>
+            <div className="avatar-name">{user?.fullName || role}</div>
+            <div className="avatar-role">{role}</div>
           </div>
         </div>
       </aside>
@@ -94,32 +124,22 @@ export default function Layout({ activePage, setActivePage, children }) {
       <div className="main">
         <header className="topbar">
           <div className="page-title">
-            <span className="breadcrumb">
-              {activeMeta?.role} / {activeMeta?.feature}
-            </span>
-            {activeMeta?.label}
+            <span className="breadcrumb">{role}</span>
+            {titleFromPath(location.pathname, role)}
           </div>
           <div className="topbar-right">
-            <label className="token-field">
-              <input
-                value={token}
-                onChange={(event) => setToken(event.target.value)}
-                placeholder="Paste JWT token"
-              />
-            </label>
-            <button className="btn-primary" onClick={saveToken}>
-              Save Token
-            </button>
-            <button className="btn-ghost" onClick={() => setActivePage('notifications')}>
+            <button className="btn-ghost" onClick={() => navigate(`/${role.toLowerCase()}/notifications`)}>
               <Bell size={14} /> Notifications
             </button>
-            <button className="btn-ghost" onClick={exportPageInfo}>
-              <Download size={14} /> Export CSV
+            <button className="btn-ghost" onClick={handleLogout}>
+              <LogOut size={14} /> Logout
             </button>
           </div>
         </header>
 
-        <div className="content">{children}</div>
+        <div className="content">
+          <Outlet />
+        </div>
       </div>
     </div>
   );
